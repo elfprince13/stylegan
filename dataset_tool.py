@@ -570,8 +570,6 @@ def create_from_places2(tfrecord_dir, image_dir, shuffle):
             
             down_space = np.rint(np.linspace(512, height, num_down)).astype(np.int32)
             across_space = np.rint(np.linspace(512, width, num_across)).astype(np.int32)
-            print(down_space)
-            print(across_space)
             for end_row in down_space:
                 for end_col in across_space:
                     img = np.copy(img_raw[:, (end_row-512):end_row, (end_col-512):end_col])
