@@ -550,10 +550,10 @@ def create_from_places2(tfrecord_dir, image_dir, shuffle):
                 print("Warning: %s had mode %s, skipping." % (image_filenames[order[idx]], img_raw.mode))
                 continue
             width, height = img_raw.size
-            if width < height and width < 512:
+            if width <= height and width < 512:
                 height = int(round(height * (512./width)))
                 width = 512
-            elif height < width and height < 512:
+            elif height <= width and height < 512:
                 width = int(round(width * (512./height)))
                 height = 512
             scaled_size = (width, height)
@@ -580,10 +580,11 @@ def create_from_places2(tfrecord_dir, image_dir, shuffle):
                         tfr.add_image(img)
                     except:
                         e = sys.exc_info()[0]
-                        error("Was unable to save from %s: %s" % (image_filenames[order[idx]], str(e)))
+                        print("Warning: was unable to save from %s: %s" % (image_filenames[order[idx]], repr(e)))
+                        continue
             steps += 1
             if not (steps % 50):
-                print("\t%d/%d" % (steps, len(image_filenames)))
+                print("\n\t%d/%d" % (steps, len(image_filenames)))
     print("Done")
 
 #----------------------------------------------------------------------------
