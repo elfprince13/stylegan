@@ -545,7 +545,7 @@ def create_from_places2(tfrecord_dir, image_dir, shuffle):
     with TFRecordExporter(tfrecord_dir, len(image_filenames)) as tfr:
         order = tfr.choose_shuffled_order() if shuffle else np.arange(len(image_filenames))
         for idx in range(order.size):
-            img_raw = PIL.Image.open(image_filenames[order[idx]])
+            img_raw = PIL.Image.open(image_filenames[order[idx]]).convert('RGB' if channels == 3 else 'L')
             width, height = img_raw.size
             if width < height and width < 512:
                 height = int(round(height * (512./width)))
@@ -565,7 +565,7 @@ def create_from_places2(tfrecord_dir, image_dir, shuffle):
             img_raw = np.asarray(img_raw)
             if channels == 1:
                 img_raw = img_raw[np.newaxis, :, :] # HW => CHW
-            else:
+            elif channels == 3:
                 img_raw = img_raw.transpose([2, 0, 1]) # HWC => CHW
             
             down_space = np.rint(np.linspace(512, height, num_down)).astype(np.int32)
