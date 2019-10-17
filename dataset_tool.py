@@ -15,6 +15,7 @@ import argparse
 import threading
 import six.moves.queue as Queue # pylint: disable=import-error
 import traceback
+import math
 import numpy as np
 import tensorflow as tf
 import PIL.Image
@@ -526,6 +527,60 @@ def create_from_images(tfrecord_dir, image_dir, shuffle):
                 img = img.transpose([2, 0, 1]) # HWC => CHW
             tfr.add_image(img)
 
+def create_from_places2(tfrecord_dir, image_dir, shuffle):
+    print('Loading images from "%s"' % image_dir)
+    image_filenames = sorted(glob.glob(os.path.join(image_dir, '*')))
+    if len(image_filenames) == 0:
+        error('No input images found')
+
+    img = np.asarray(PIL.Image.open(image_filenames[0]))
+    
+    
+    channels = img.shape[2] if img.ndim == 3 else 1
+    if channels not in [1, 3]:
+        error('Input images must be stored as RGB or grayscale')
+    steps = 0
+    print("Saving samples from %s to %s" % (image_dir, tfrecord_dir))
+    print("\t0/%d" % len(image_filenames))
+    with TFRecordExporter(tfrecord_dir, len(image_filenames)) as tfr:
+        order = tfr.choose_shuffled_order() if shuffle else np.arange(len(image_filenames))
+        for idx in range(order.size):
+            img_raw = PIL.Image.open(image_filenames[order[idx]])
+            width, height = img_raw.size
+            if width < height and width < 512:
+                height = int(round(height * (512./width)))
+                width = 512
+            elif height < width and height < 512:
+                width = int(round(width * (512./height)))
+                height = 512
+            scaled_size = (width, height)
+            if scaled_size != img_raw.size:
+                print('Warning: rescaling %s from %s to %s' % (image_filenames[order[idx]], repr(img_raw.size), repr(scaled_size)))
+                img_raw = img_raw.resize(scaled_size, PIL.Image.BILINEAR)
+                
+            num_across = int(math.ceil(width / 512.))
+            num_down = int(math.ceil(height / 512.))
+            
+            
+            img_raw = np.asarray(img_raw)
+            if channels == 1:
+                img_raw = img_raw[np.newaxis, :, :] # HW => CHW
+            else:
+                img_raw = img_raw.transpose([2, 0, 1]) # HWC => CHW
+            
+            down_space = np.rint(np.linspace(512, height, num_down)).astype(np.int32)
+            across_space = np.rint(np.linspace(512, width, num_across)).astype(np.int32)
+            print(down_space)
+            print(across_space)
+            for end_row in down_space:
+                for end_col in across_space:
+                    img = np.copy(img_raw[:, (end_row-512):end_row, (end_col-512):end_col])
+                    tfr.add_image(img)
+            steps += 1
+            if not (steps % 50):
+                print("\t%d/%d" % (steps, len(image_filenames)))
+    print("Done")
+
 #----------------------------------------------------------------------------
 
 def create_from_hdf5(tfrecord_dir, hdf5_filename, shuffle):
@@ -622,6 +677,9 @@ def execute_cmdline(argv):
 
     p = add_command(    'create_from_images', 'Create dataset from a directory full of images.',
                                             'create_from_images datasets/mydataset myimagedir')
+
+    p = add_command(    'create_from_places2', 'Create dataset from a directory full of images from Places2.',
+                                            'create_from_places2 datasets/mydataset myimagedir')
     p.add_argument(     'tfrecord_dir',     help='New dataset directory to be created')
     p.add_argument(     'image_dir',        help='Directory containing the images')
     p.add_argument(     '--shuffle',        help='Randomize image order (default: 1)', type=int, default=1)
