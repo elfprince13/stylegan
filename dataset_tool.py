@@ -536,16 +536,17 @@ def create_from_places2(tfrecord_dir, image_dir, shuffle):
     img = np.asarray(PIL.Image.open(image_filenames[0]))
     
     
-    channels = img.shape[2] if img.ndim == 3 else 1
-    if channels not in [1, 3]:
-        error('Input images must be stored as RGB or grayscale')
+    channels = 3#img.shape[2] if img.ndim == 3 else 1
     steps = 0
     print("Saving samples from %s to %s" % (image_dir, tfrecord_dir))
     print("\t0/%d" % len(image_filenames))
     with TFRecordExporter(tfrecord_dir, len(image_filenames)) as tfr:
         order = tfr.choose_shuffled_order() if shuffle else np.arange(len(image_filenames))
         for idx in range(order.size):
-            img_raw = PIL.Image.open(image_filenames[order[idx]]).convert('RGB' if channels == 3 else 'L')
+            img_raw = PIL.Image.open(image_filenames[order[idx]])
+            if img_raw.mode != 'RGB':
+                print("Warning: %s had mode %s, skipping." % (image_filenames[order[idx]], img_raw.mode))
+                continue
             width, height = img_raw.size
             if width < height and width < 512:
                 height = int(round(height * (512./width)))
